@@ -250,3 +250,12 @@ If you just want to remove the resources and keep the cluster, proceed with the 
     ```
 
 1. Recycle all the nodes of your cluster to make sure there're no orphan calico iptables rule that may alter the networking behavior of your cluster.
+
+
+## Security
+
+See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
+
+## License
+
+This library is licensed under the MIT-0 License. See the LICENSE file.
