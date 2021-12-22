@@ -1,0 +1,124 @@
+apiVersion: flagger.app/v1beta1
+kind: Canary
+metadata:
+  name: podinfo-canary
+  namespace: podinfo
+spec:
+  # service mesh provider can be: kubernetes, istio, appmesh, nginx, gloo
+  provider: nginx
+  service:
+    port: 80
+    targetPort: 9898
+  # deployment reference
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: podinfo
+  #Ingress reference
+  ingressRef:
+    apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    name: podinfo
+  # HPA reference (optional)
+  autoscalerRef:
+    apiVersion: autoscaling/v2beta2
+    kind: HorizontalPodAutoscaler
+    name: podinfo
+  # the maximum time in seconds for the canary deployment
+  # to make progress before rollback (default 600s)
+  progressDeadlineSeconds: 60
+  analysis:
+    # schedule interval (default 60s)
+    interval: 10s
+    # max number of failed metric checks before rollback
+    threshold: 10
+    # max traffic percentage routed to canary
+    # percentage (0-100)
+    maxWeight: 50
+    # canary increment step
+    # percentage (0-100)
+    stepWeight: 10
+    # NGINX Prometheus checks
+    metrics:
+    - name: error-rate
+      templateRef:
+        name: error-rate
+        namespace: podinfo
+      thresholdRange:
+        max: 1
+      interval: 1m
+    webhooks:
+      - name: acceptance-test
+        type: pre-rollout
+        url: http://flagger-loadtester.flagger-system/
+        timeout: 30s
+        metadata:
+          type: bash
+          cmd: "curl -sd 'test' http://podinfo-canary.podinfo/token | grep token"
+      - name: load-test
+        url: http://flagger-loadtester.flagger-system/
+        timeout: 5s
+        metadata:
+          cmd: "hey -z 1m -q 10 -c 2 -host podinfo.test http://k8s-xxx.elb.us-west-2.amazonaws.com"
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: podinfo-canary
+  namespace: podinfo
+  labels:
+    release: kube-prometheus-stack
+spec:
+  endpoints:
+  - path: /metrics
+    port: http
+    interval: 5s
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: podinfo-canary
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: podinfo-primary
+  namespace: podinfo
+  labels:
+    release: kube-prometheus-stack
+spec:
+  endpoints:
+    - path: /metrics
+      port: http
+      interval: 5s
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: podinfo-primary
+---
+apiVersion: flagger.app/v1beta1
+kind: MetricTemplate
+metadata:
+  name: error-rate
+  namespace: podinfo
+spec:
+  provider:
+    type: prometheus
+    address: http://kube-prometheus-stack-prometheus.monitoring:9090
+  query: |
+    100 - sum(
+      rate(
+        nginx_ingress_controller_requests{
+          exported_namespace="{{ namespace }}",
+          ingress="{{ ingress }}",
+          status!~"5.*"
+        }[{{ interval }}]
+      )
+    ) 
+    / 
+    sum(
+      rate(
+        nginx_ingress_controller_requests{
+          exported_namespace="{{ namespace }}",
+          ingress="{{ ingress }}"
+        }[{{ interval }}]
+      )
+    ) 
+    * 100

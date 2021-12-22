@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-inbound
+  namespace: flagger-system
+spec:
+  podSelector: 
+    matchLabels:
+      app.kubernetes.io/name: loadtester
+  policyTypes:
+  - Ingress
+  ingress:
+  - ports:
+    - protocol: TCP
+      port: 8080
+    from:
+      - podSelector: 
+          matchLabels:
+            app.kubernetes.io/name: flagger
+      - namespaceSelector:
+          matchLabels:
+            name: flagger-system

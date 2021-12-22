@@ -1,0 +1,28 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: kyverno
+  namespace: kyverno
+spec:
+  releaseName: kyverno
+  chart:
+    spec:
+      chart: kyverno
+      version: 1.4.1
+      sourceRef:
+        kind: HelmRepository
+        name: kyverno
+        namespace: flux-system
+  # https://github.com/kyverno/kyverno/blob/main/charts/kyverno/values.yaml
+  values:
+    # baseline / restricted / privileged / custom: https://kyverno.io/policies/pod-security/
+    podSecurityStandard: disabled
+    serviceMonitor:
+      enabled: true
+    replicaCount: 2
+    networkPolicy:
+      enabled: true
+  interval: 1m
+  dependsOn:
+    - name: kube-prometheus-stack
+      namespace: monitoring

@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-inbound
+  namespace: podinfo
+spec:
+  podSelector: 
+    matchExpressions:
+      - {key: app.kubernetes.io/name, operator: In, values: ["podinfo", "podinfo-primary", "podinfo-canary"] }
+  policyTypes:
+  - Ingress
+  ingress:
+    - ports:
+      - protocol: TCP
+        port: 9898
+      from:
+        - podSelector:
+            matchExpressions:
+              - { key: app.kubernetes.io/name, operator: In, values: ["ingress-nginx", "prometheus", "loadtester"] }
+        - namespaceSelector:
+            matchExpressions:
+              - { key: name, operator: In, values: ["monitoring", "ingress-nginx", "flagger-system"]}
+          
