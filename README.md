@@ -1,6 +1,6 @@
 # Managing configuration of Amazon EKS clusters per environment with GitOps using Flux
 
-This repository provides a sample configuration blueprint for configuring multiple Amazon EKS clusters (`test` and `production`) using [GitOps](https://www.gitops.tech/) with [Flux v2](https://fluxcd.io/docs/). This repository installs a set of commonly used Kuberntes add-ons to perform policy enforcement, restrict network traffic with network policies, cluster monitoring, extend Kubernetes deployment capabilities enabling progressive Canary deployments for your applications... 
+This repository provides a sample configuration blueprint for configuring multiple Amazon EKS clusters (`test` and `production`) using [GitOps](https://www.gitops.tech/) with [Flux v2](https://fluxcd.io/docs/). This repository installs a set of commonly used Kuberntes add-ons to perform policy enforcement, restrict network traffic with network policies, cluster monitoring, extend Kubernetes deployment capabilities enabling Canary deployments for your applications... 
 
 This repository defines a baseline cluster configuration and customizes it for a `test` and `production` clusters leveraging [Kustomize overlays](https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/#bases-and-overlays). Aside of the cluster add-ons and configuration, it also installs [podinfo](https://github.com/stefanprodan/podinfo) as sample application.
 

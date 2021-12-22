@@ -26,6 +26,3 @@ iam:
     attachPolicyARNs:
     - arn:aws:iam::012345678910:policy/AWSLoadBalancerControllerIAMPolicy
 
-cloudWatch:
-    clusterLogging:
-        enableTypes: ["*"]
