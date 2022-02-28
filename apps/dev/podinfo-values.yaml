@@ -15,7 +15,7 @@ spec:
       color: "#34577c"
     ingress:
       hosts:
-        - host: "podinfo.test"
+        - host: "podinfo.dev"
           paths:
             - path: /
               pathType: ImplementationSpecific
@@ -66,4 +66,4 @@ spec:
         timeout: 5s
         # Update the URL below with your ingress URL
         metadata:
-          cmd: "hey -z 1m -q 10 -c 2 -host podinfo.test http://k8s-ingressn-xxxxxxxx.elb.us-west-2.amazonaws.com"
+          cmd: "hey -z 1m -q 10 -c 2 -host podinfo.dev http://k8s-ingressn-xxxxxxxx.elb.us-west-2.amazonaws.com"
