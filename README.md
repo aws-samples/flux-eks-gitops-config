@@ -4,11 +4,13 @@ This repository provides a sample configuration blueprint for configuring multip
 
 This repository defines a baseline cluster configuration and customizes it for a `test` and `production` clusters leveraging [Kustomize overlays](https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/#bases-and-overlays). Aside of the cluster add-ons and configuration, it also installs [podinfo](https://github.com/stefanprodan/podinfo) as sample application.
 
-This sample uses a repository per team structure to centrally manage multiple Kubernetes clusters belonging to different environments while enabling soft-multitenancy, giving autonomy to the tenants to define what gets deployed on their namespaces. In this structure, this repository is owned by a central plaftform team that configures the cluster add-ons and on-boards tenants creating dedicated namespaces for them and creating the *GitRepository* object pointing to the tenant repository where *Kustomization* and Deployment manifests (or *HelmRelease* CRDs) are defined. Flux impersonates a *ServiceAccount* on the tenant namespace to sync Kubernetes manifests from the repository. By default, this ServiceAccount has a RoleBinding in the namespace to `cluster-admin` *ClusterRole*. You may want to further constraint the ServiceAccount permissions to limit the resources a tenant can create. You can find more information on the [Controller permissions](https://fluxcd.io/docs/security/#controller-permissions) documentation. You may also consider locking down Flux to deny cross-namespace access to Flux custom resources and configuring a default service account for *Kustomizations* and *HelmReleases*. You'll find more information about multi-tenancy lockdown [here](https://fluxcd.io/docs/installation/#multi-tenancy-lockdown).
+This sample uses a repository per team structure to centrally manage multiple Kubernetes clusters belonging to different environments while enabling soft-multitenancy, giving autonomy to the tenants to define what gets deployed on their namespaces. In this structure, this repository is owned by a central plaftform team that configures the cluster add-ons and on-boards tenants creating dedicated namespaces for them and creating the *GitRepository* object pointing to the tenant repository where *Kustomization* and Deployment manifests (or *HelmRelease* CRDs) are defined.  
 
-You can read more about ways to structure GitOps repositories on the Flux documentation [here](https://fluxcd.io/docs/guides/repository-structure/#repo-per-team). 
+Both `test` and `production` clusters are configured to enable multi-tenancy lockdown to restrict tenants permissions to create resources. Flux impersonates a *ServiceAccount* on the tenant namespace to sync Kubernetes manifests from the repository. When on-boarding a tenant, a namespace is created, and a `ServiceAccount` within it for Flux to impersonate. This ServiceAccount has a RoleBinding in the namespace to `cluster-admin` *ClusterRole* giving flux permissions to manage namespaced resources. You can also further constraint the ServiceAccount permissions to limit the resources a tenant can create. You can find more information on the [Controller permissions](https://fluxcd.io/docs/security/#controller-permissions) documentation. You'll find more information about multi-tenancy lockdown [here](https://fluxcd.io/docs/installation/#multi-tenancy-lockdown).
 
-You can use this sample repository to experiment with the predefined cluster configuration and use it as a baseline to adjust it to your own needs.
+There are multiple ways structure GitOps repositories. You can find more information on the Flux documentation [here](https://fluxcd.io/docs/guides/repository-structure/#repo-per-team). 
+
+This sample repository is meant to experiment with the predefined cluster configuration and you can use it as a baseline to adjust it to your own needs.
 
 This sample installs the following Kubernetes add-ons:
 
@@ -52,7 +54,7 @@ You can also leverage [aws-eks-accelerator-for-terraform](https://github.com/aws
 
 You will also need the following:
 
-* Install flux CLI on your computer following the instructions [here](https://fluxcd.io/docs/installation/). This repository has been tested with flux 0.22.
+* Install flux 0.26+ on your computer following the instructions [here](https://fluxcd.io/docs/installation/). This repository has been tested with flux 0.30.2.
 * A GitHub account and a [personal access token](https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line) that can create repositories.
 
 ### Bootstrap your cluster
