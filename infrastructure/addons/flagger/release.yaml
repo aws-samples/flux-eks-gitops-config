@@ -2,9 +2,11 @@ apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
   name: flagger
-  namespace: flagger-system
+  namespace: flux-system
 spec:
   releaseName: flagger
+  serviceAccountName: helm-controller
+  targetNamespace: flagger-system
   chart:
     spec:
       chart: flagger
@@ -16,7 +18,6 @@ spec:
   interval: 1m
   dependsOn:
     - name: ingress-nginx
-      namespace: ingress-nginx
   values:
     meshProvider: kubernetes
     metricsServer: http://kube-prometheus-stack-prometheus.monitoring:9090
@@ -28,9 +29,11 @@ apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
   name: flagger-loadtester
-  namespace: flagger-system
+  namespace: flux-system
 spec:
   releaseName: flagger-loadtester
+  serviceAccountName: helm-controller
+  targetNamespace: flagger-system
   chart:
     spec:
       chart: loadtester

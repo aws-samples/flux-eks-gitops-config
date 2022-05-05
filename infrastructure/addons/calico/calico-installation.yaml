@@ -8,6 +8,7 @@ metadata:
   name: calico-installation
   namespace: flux-system
 spec:
+  serviceAccountName: kustomize-controller
   dependsOn:
     - name: calico-operator
   interval: 1m
