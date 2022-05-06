@@ -5,6 +5,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 1m0s
+  serviceAccountName: kustomize-controller
   sourceRef:
     kind: GitRepository
     name: flux-system

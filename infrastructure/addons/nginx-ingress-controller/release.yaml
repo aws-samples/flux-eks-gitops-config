@@ -2,9 +2,11 @@ apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
   name: ingress-nginx
-  namespace: ingress-nginx
+  namespace: flux-system
 spec:
   releaseName: ingress-nginx
+  targetNamespace: ingress-nginx
+  serviceAccountName: helm-controller
   chart:
     spec:
       chart: ingress-nginx
@@ -47,7 +49,6 @@ spec:
   interval: 5m
   dependsOn:
     - name: kube-prometheus-stack
-      namespace: monitoring
   install:
     remediation:
       retries: 3
