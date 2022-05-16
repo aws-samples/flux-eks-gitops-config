@@ -4,4 +4,4 @@ metadata:
   name: podinfo-team
   namespace: podinfo
 spec:
-  path: ./deploy/production
+  path: ./production
