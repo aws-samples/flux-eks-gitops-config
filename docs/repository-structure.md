@@ -19,9 +19,19 @@ The `config/base/policies` folder contains a set of Kyverno policies implementin
 
 These policies are meant to be used as an example and a starting point to define your own policies. This is not meant to be a comprehensive implementation of security best practices. To learn about EKS Security Best practices recommendations, please visit the EKS Best Practices guides [here](https://aws.github.io/aws-eks-best-practices/security/docs/).
 
-## apps
+## tenants
 
-Contains the applications to be deployed on the cluster. This sample repository deploys [podinfo](https://github.com/stefanprodan/podinfo) as example application and uses Kustomize overlays to set up spefic configuration to `TEST` and `PRODUCTION` clusters.
+Containts the tenants that are on-boarded to the cluster. The example contains a single tenant named `podinfo-team` and creates the following resources:
+* A namespace for the team
+* A ServiceAccount within the namespace with a *RoleBinding* to *ClusterRole* `cluster-admin` for Flux to impersonate when reconciling tenant resources. You can further constrain permissions to limit the resources that tenants can create.
+* A *GitRepository* Custom Resource pointing to the tenant repository: [flux-eks-gitops-config-tenant](https://github.com/aws-samples/flux-eks-gitops-config-tenant)
+* A [Kustomization](https://fluxcd.io/docs/components/kustomize/kustomization/) Custom Resource pointing to the above repository to reconcile tenant resources. 
+
+Kustomize overlays are used to patch `test` and `production` deployments with specific values.
+
+## tenant repository [flux-eks-gitops-config-tenant](https://github.com/aws-samples/flux-eks-gitops-config-tenant)
+
+Contains the tenant applications to be deployed on the cluster. This sample uses [podinfo](https://github.com/stefanprodan/podinfo) as example application and uses Kustomize overlays to set up spefic configuration to `TEST` and `PRODUCTION` clusters.
 
 The application is configured to use progressive deployments orchestrated by Flagger and nginx ingress controller. [ServiceMonitors](https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#servicemonitor) are also configured for the Prometheus Operator to scrape application metrics and a [MetricTemplate](https://docs.flagger.app/usage/metrics#custom-metrics) to define the Canary metric to be used for our deployments. These objects are defined in `apps/base/podinfo/canary.yaml`.
 
@@ -103,7 +113,7 @@ Flux starts sync'ing the infrastructure Kustomization. Once it's sync'ed and pas
 ```
 infrastructure
       |-- config
-            |-- apps
+            |-- tenants
 ```
 
 ##  HelmReleases
