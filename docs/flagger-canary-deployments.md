@@ -1,8 +1,8 @@
 #  Testing canary deployments with Flagger and nginx ingress controller
 
-Now that the cluster configuration has been applied and podinfo has been deployed, we are going to perform changes on podinfo and confirm that Flagger is correctly configured to perform canary deployments of our application.
+Once the cluster add-ons have been deployed and configured, the development team `podinfo-team` can deploy the podinfo application as well as leverage Flagger to perform canary deployments of the application. All the podinfo application resources are defined on the [flux-eks-gitops-config-tenant](https://github.com/aws-samples/flux-eks-gitops-config-tenant) repository. 
 
-Create an [Alias record](https://aws.amazon.com/premiumsupport/knowledge-center/route-53-create-alias-records/) (if using Route 53) or a CNAME in your public DNS zone pointing to the nginx ingress Load Balancer URL. To get the ingress URL, run the following command:
+First, create an [Alias record](https://aws.amazon.com/premiumsupport/knowledge-center/route-53-create-alias-records/) (if using Route 53) or a CNAME in your public DNS zone pointing to the nginx ingress Load Balancer URL (you could also leverage [external-dns](https://github.com/kubernetes-sigs/external-dns) to manage Ingress DNS registration). To get the ingress URL, run the following command:
 
 ```bash
    $ kubectl get ingress -n podinfo
@@ -11,11 +11,11 @@ Create an [Alias record](https://aws.amazon.com/premiumsupport/knowledge-center/
    podinfo-canary   nginx   podinfo.test   k8s-xxxxxx.elb.us-west-2.amazonaws.com   80      23h
 ```
 
-Then, update the ingress and canary configuration to use your domain name. This way, you can easily access the podinfo application on your browser.
+Then, on your fork of `flux-eks-gitops-config-tenant` repository, update the *Ingress* and *Canary* configuration to use your domain name. This way, you can easily access the podinfo application on your browser.
 
 If you don't have a public DNS zone, instead of the above, you can create an entry on your local /etc/hosts file for `podinfo.test` (or podinfo.production, depending of your cluster environment) pointing to the IPs of your Load Balancer, so you can easily access podinfo via browser in your PC. If this is your case, skip step 1.
 
-1. `apps/${CLUSTER_ENVIRONMENT}/podinfo-values.yaml`: substitute the value of host that's currently `podinfo.${CLUSTER_ENVIRONMENT}` with the domain name you have created (in the example below `myapp.mydomain.com`).
+1. `${CLUSTER_ENVIRONMENT}/podinfo-values.yaml`: substitute the value of host that's currently `podinfo.${CLUSTER_ENVIRONMENT}` with the domain name you have created (in the example below `myapp.mydomain.com`).
 
 ```yaml
   apiVersion: helm.toolkit.fluxcd.io/v2beta1
@@ -45,7 +45,7 @@ If you don't have a public DNS zone, instead of the above, you can create an ent
           memory: "128Mi"
 ```
 
-1. `apps/{$CLUSTER_ENVIRONMENT}/podinfo-values.yaml`: substitute the URL on line 69 that flagger will use to perform load tests on the application:
+1. `{$CLUSTER_ENVIRONMENT}/podinfo-values.yaml`: substitute the URL on line 69 that flagger will use to perform load tests on the application:
 
 If you have created a custom domain name, it should look like the following:
 
@@ -59,24 +59,24 @@ If you have not created a custom domain name, update the URL with your ingress U
   cmd: "hey -z 1m -q 10 -c 2 -host podinfo.test http://k8s-xxxxx.elb.us-west-2.amazonaws.com"
 ```
 
-Commit your changes to repository and confirm Flux has synchronized them on your cluster. You can do that by running:
+Commit and push your changes to the repository and confirm Flux has synchronized them on your cluster. You can do that by running:
 
 ```bash
-flux get kustomizations apps
+flux get kustomizations podinfo-team -n podinfo
 ```
 
 Make sure that the output includes the latest <COMMIT-ID> from your repository:
 
 ```
-NAME READY MESSAGE                                                         REVISION                                      SUSPENDED
-apps True  Applied revision: main/<COMMIT-ID> main/<COMMIT-ID> False
+NAME           READY   MESSAGE                                                REVISION                        SUSPENDED
+podinfo-team   True    Applied revision: main/<COMMIT-ID>                     main/<COMMIT-ID>                False
 ```
 
 If needed, you can force reconciliation with the following command:
 
 ```bash
-  $ flux reconcile kustomization apps
-  ► annotating Kustomization apps in flux-system namespace
+  $ flux reconcile kustomization podinfo-team -n podinfo
+  ► annotating Kustomization podinfo-team in podinfo namespace
   ✔ Kustomization annotated
   ◎ waiting for Kustomization reconciliation
   ✔ Kustomization reconciliation completed
@@ -87,7 +87,7 @@ Access podinfo in your browser either with your custom DNS name or with podinfo.
 
 ![podinfo](images/podinfo-screenshot.png)
 
-Now, let's change the background color of the podinfo app. Edit `apps/${CLUSTER_ENVIRONMENT}/podinfo-values.yaml` and change the `color` value (for example, red: #ff0000). You can use [this](https://www.w3schools.com/colors/colors_picker.asp) HTML color picker):
+Now, let's change the background color of the podinfo app. Edit `${CLUSTER_ENVIRONMENT}/podinfo-values.yaml` and change the `color` value (for example, red: #ff0000). You can use [this](https://www.w3schools.com/colors/colors_picker.asp) HTML color picker):
 
 ```yaml
   apiVersion: helm.toolkit.fluxcd.io/v2beta1
@@ -120,8 +120,8 @@ Now, let's change the background color of the podinfo app. Edit `apps/${CLUSTER_
 Commit the change to your repository and watch Flux applying the change and Flagger rolling it out. You can instantly reconcile changes on your cluster with the following command:
 
 ```bash
-  $ flux reconcile kustomization apps
-  ► annotating Kustomization apps in flux-system namespace
+  $ flux reconcile kustomization podinfo-team -n podinfo
+  ► annotating Kustomization podinfo-team in podinfo namespace
   ✔ Kustomization annotated
   ◎ waiting for Kustomization reconciliation
   ✔ Kustomization reconciliation completed
@@ -134,8 +134,8 @@ Now, watch the Flagger canary testing and rollout with the following command:
   $ kubectl describe canary podinfo-canary -n podinfo
   Name:         podinfo-canary
   Namespace:    podinfo
-  Labels:       kustomize.toolkit.fluxcd.io/name=apps
-                kustomize.toolkit.fluxcd.io/namespace=flux-system
+  Labels:       kustomize.toolkit.fluxcd.io/name=podinfo-team
+                kustomize.toolkit.fluxcd.io/namespace=podinfo
   Annotations:  kustomize.toolkit.fluxcd.io/checksum: 7f8d2ca84a16dabbb320ba51a5b212996069d024
   API Version:  flagger.app/v1beta1
   Kind:         Canary
