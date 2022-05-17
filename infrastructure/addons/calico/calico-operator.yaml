@@ -4,6 +4,7 @@ metadata:
   name: calico-operator
   namespace: flux-system
 spec:
+  serviceAccountName: kustomize-controller
   interval: 1m
   path: "./config/master"
   prune: true

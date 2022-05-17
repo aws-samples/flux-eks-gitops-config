@@ -2,13 +2,19 @@
 
 This repository provides a sample configuration blueprint for configuring multiple Amazon EKS clusters (`test` and `production`) using [GitOps](https://www.gitops.tech/) with [Flux v2](https://fluxcd.io/docs/). This repository installs a set of commonly used Kuberntes add-ons to perform policy enforcement, restrict network traffic with network policies, cluster monitoring, extend Kubernetes deployment capabilities enabling Canary deployments for your applications... 
 
-This repository defines a baseline cluster configuration and customizes it for a `test` and `production` clusters leveraging [Kustomize overlays](https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/#bases-and-overlays). Aside of the cluster add-ons and configuration, it also installs [podinfo](https://github.com/stefanprodan/podinfo) as sample application.
+This repository defines a baseline cluster configuration and customizes it for a `test` and `production` clusters leveraging [Kustomize overlays](https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/#bases-and-overlays). It also on-boards a sample tenant with its own repository [flux-eks-gitops-config-tenant](https://github.com/aws-samples/flux-eks-gitops-config-tenant) which installs [podinfo](https://github.com/stefanprodan/podinfo) as sample application.
 
-This sample uses a mono-repository structure to manage multiple Kubernetes clusters belonging to different environments. You can read more about ways to structure GitOps repositories on the Flux documentation [here](https://fluxcd.io/docs/guides/repository-structure/).
+This sample uses a repository per team structure. This repository centrally manages multiple Kubernetes clusters belonging to different environments. This repository is owned by a central plaftform team that configures the cluster add-ons and on-boards tenants creating dedicated namespaces for them and creating the [GitRepository](https://fluxcd.io/docs/components/source/gitrepositories/) Custom Resource pointing to the tenant repository owned by the development team. This gives the development team autonomy to deploy changes on their own namespace via GitOps. The tenant repository hosts the deployment manifests, [Kustomization](https://fluxcd.io/docs/components/kustomize/kustomization/) or [HelmRelease](https://fluxcd.io/docs/components/helm/helmreleases/) Custom Resources to deploy the applications on the cluster. There are multiple ways structure GitOps repositories, you can find more information on the Flux documentation [here](https://fluxcd.io/docs/guides/repository-structure/#repo-per-team). 
 
-You can use this sample repository to experiment with the predefined cluster configuration and use it as a baseline to adjust it to your own needs.
+The high-level structure of the sample repositories is the following:
 
-This sample installs the following Kubernetes add-ons:
+![repository-structure](docs/images/repository-structure.jpg)
+
+Both `test` and `production` clusters are configured to enable [multi-tenancy lockdown](https://fluxcd.io/docs/installation/#multi-tenancy-lockdown) in Flux to restrict tenants permissions to create resources as well as blocking cross-namespace references. You can check the configuration on `clusters/<environment>/flux-system/kustomization.yaml`.
+
+When the platform team on-boards a tenant, a namespace is created, and a *ServiceAccount* within it for Flux to impersonate when reconciling resources from the tenant repository. This ServiceAccount has a *RoleBinding* in the namespace to `cluster-admin` *ClusterRole* giving Flux full permissions to manage resources in its namespace. You can also further constrain the ServiceAccount permissions to limit the resources a tenant can create. You can find more information on the [Controller permissions](https://fluxcd.io/docs/security/#controller-permissions) documentation. 
+
+This sample repository is meant to experiment with the predefined cluster configuration and you can use it as a baseline to adjust it to your own needs. It installs the following Kubernetes add-ons:
 
 * **[metrics-server](https://github.com/kubernetes-sigs/metrics-server):** Aggregator of resource usage data in your cluster, commonly used by other Kubernetes add ons, such us [Horizontal Pod Autoscaler](https://docs.aws.amazon.com/eks/latest/userguide/horizontal-pod-autoscaler.html) or [Kubernetes Dashboard](https://docs.aws.amazon.com/eks/latest/userguide/dashboard-tutorial.html).
 * **[Calico](https://docs.projectcalico.org/about/about-calico):** Project Calico is a network policy engine for Kubernetes. Calico network policy enforcement allows you to implement network segmentation and tenant isolation. For more information check the [Amazon EKS documentation](https://docs.aws.amazon.com/eks/latest/userguide/calico.html).
@@ -50,83 +56,80 @@ You can also leverage [aws-eks-accelerator-for-terraform](https://github.com/aws
 
 You will also need the following:
 
-* Install flux CLI on your computer following the instructions [here](https://fluxcd.io/docs/installation/). This repository has been tested with flux 0.22.
+* Install flux 0.30+ on your computer following the instructions [here](https://fluxcd.io/docs/installation/). This repository has been tested with flux 0.30.2.
 * A GitHub account and a [personal access token](https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line) that can create repositories.
 
 ### Bootstrap your cluster
 
-Fork this repository on your personal GitHub account and export your GitHub access token, username and repo name:
+1. Fork this repository on your personal GitHub account and export your GitHub access token, username and repo name:<br>
+    ```bash
+      export GITHUB_TOKEN=<your-token>
+      export GITHUB_USER=<your-username>
+      export GITHUB_REPO=<repository-name>
+    ```
 
-```bash
-  export GITHUB_TOKEN=<your-token>
-  export GITHUB_USER=<your-username>
-  export GITHUB_REPO=<repository-name>
-```
+2. Fork the [flux-eks-gitops-config-tenant](https://github.com/aws-samples/flux-eks-gitops-config-tenant) repository on your personal GitHub account. 
 
-Define whether you want to bootstrap your cluster with the `TEST` or the `PRODUCTION` configuration:
+3. Within your fork of `flux-eks-gitops-config` update the URL field for the GitRepository Custom Resource in `tenants/base/podinfo-team/source.yaml` with the URL of your forked repository (e.g. `https://github.com/<user>/flux-eks-gitops-config-tenant`). Commit and Push the change. 
 
-```bash
-  # TEST configuration
-  export CLUSTER_ENVIRONMENT=test
+4. Define whether you want to bootstrap your cluster with the `TEST` or the `PRODUCTION` configuration:
+    ```bash
+      # TEST configuration
+      export CLUSTER_ENVIRONMENT=test
 
-  # PRODUCTION configuration
-  export CLUSTER_ENVIRONMENT=production
-```
+      # PRODUCTION configuration
+      export CLUSTER_ENVIRONMENT=production
+    ```
 
-Verify that your stagging cluster satisfies the prerequisites with:
+5. Verify that your stagging cluster satisfies the prerequisites with:
+    ```bash
+      flux check --pre
+    ```
 
-```bash
-  flux check --pre
-```
+6. You can now bootstrap your cluster with Flux CLI.
+    ```bash
+      flux bootstrap github --owner=${GITHUB_USER} --repository=${GITHUB_REPO} --branch=main --path=clusters/${CLUSTER_ENVIRONMENT} --personal
+    ```
+  
+    The bootstrap command commits the manifests for the Flux components in `clusters/${CLUSTER_ENVIRONMENT}/flux-system` directory and creates a deploy key with read-only access on GitHub,    so   it can pull changes inside the cluster.
+  
+7. Confirm that Flux has finished applying the configuration to your cluster (it will take 3 or 4 minutes to sync everything):
+    ```bash
+      $ flux get kustomization
+      NAME                READY MESSAGE                                                           REVISION                                        SUSPENDED 
+      apps                True  Applied revision: main/b7d10ca21be7cac0dcdd14c80353012ccfedd4fe   main/b7d10ca21be7cac0dcdd14c80353012ccfedd4fe   False      
+      calico-installation True  Applied revision: master/00a2f33ea55f2018819434175c09c8bd8f20741a master/00a2f33ea55f2018819434175c09c8bd8f20741a False     
+      calico-operator     True  Applied revision: master/00a2f33ea55f2018819434175c09c8bd8f20741a master/00a2f33ea55f2018819434175c09c8bd8f20741a False     
+      config              True  Applied revision: main/8fd33f531df71002f2da7bc9619ee75281a9ead0   main/8fd33f531df71002f2da7bc9619ee75281a9ead0   False      
+      flux-system         True  Applied revision: main/b7d10ca21be7cac0dcdd14c80353012ccfedd4fe   main/b7d10ca21be7cac0dcdd14c80353012ccfedd4fe   False     
+      infrastructure      True  Applied revision: main/b7d10ca21be7cac0dcdd14c80353012ccfedd4fe   main/b7d10ca21be7cac0dcdd14c80353012ccfedd4fe   False
+    ```
 
-You can now bootstrap your cluster with Flux CLI.
+8. Get the URL for the nginx ingress controller that has been deployed in your cluster (you will see two ingresses, since Flagger will create a canary ingress):
+    ```bash
+       $ kubectl get ingress -n podinfo
+       NAME             CLASS   HOSTS          ADDRESS                               PORTS   AGE
+       podinfo          nginx   podinfo.test   k8s-xxxxxx.elb.us-west-2.amazonaws.com   80      23h
+       podinfo-canary   nginx   podinfo.test   k8s-xxxxxx.elb.us-west-2.amazonaws.com   80      23h
+    ```
 
-```bash
-  flux bootstrap github --owner=${GITHUB_USER} --repository=${GITHUB_REPO} --branch=main --path=clusters/${CLUSTER_ENVIRONMENT} --personal
-```
-
-The bootstrap command commits the manifests for the Flux components in `clusters/${CLUSTER_ENVIRONMENT}/flux-system` directory and creates a deploy key with read-only access on GitHub, so it can pull changes inside the cluster.
-
-Confirm that Flux has finished applying the configuration to your cluster (it will take 3 or 4 minutes to sync everything):
-
-```bash
-  $ flux get kustomization
-  NAME                READY MESSAGE                                                           REVISION                                        SUSPENDED 
-  apps                True  Applied revision: main/b7d10ca21be7cac0dcdd14c80353012ccfedd4fe   main/b7d10ca21be7cac0dcdd14c80353012ccfedd4fe   False      
-  calico-installation True  Applied revision: master/00a2f33ea55f2018819434175c09c8bd8f20741a master/00a2f33ea55f2018819434175c09c8bd8f20741a False     
-  calico-operator     True  Applied revision: master/00a2f33ea55f2018819434175c09c8bd8f20741a master/00a2f33ea55f2018819434175c09c8bd8f20741a False     
-  config              True  Applied revision: main/8fd33f531df71002f2da7bc9619ee75281a9ead0   main/8fd33f531df71002f2da7bc9619ee75281a9ead0   False      
-  flux-system         True  Applied revision: main/b7d10ca21be7cac0dcdd14c80353012ccfedd4fe   main/b7d10ca21be7cac0dcdd14c80353012ccfedd4fe   False     
-  infrastructure      True  Applied revision: main/b7d10ca21be7cac0dcdd14c80353012ccfedd4fe   main/b7d10ca21be7cac0dcdd14c80353012ccfedd4fe   False
-```
-
-Get the URL for the nginx ingress controller that has been deployed in your cluster (you will see two ingresses, since Flagger will create a canary ingress):
-
-```bash
-   $ kubectl get ingress -n podinfo
-   NAME             CLASS   HOSTS          ADDRESS                               PORTS   AGE
-   podinfo          nginx   podinfo.test   k8s-xxxxxx.elb.us-west-2.amazonaws.com   80      23h
-   podinfo-canary   nginx   podinfo.test   k8s-xxxxxx.elb.us-west-2.amazonaws.com   80      23h
-```
-
-Confirm that podinfo can be correctly accessed via ingress:
-
-```bash
-  $ curl -H "Host: podinfo.test" k8s-xxxxxx.elb.us-west-2.amazonaws.com
-  {
-  "hostname": "podinfo-primary-65584c8f4f-d7v4t",
-  "version": "6.0.0",
-  "revision": "",
-  "color": "#34577c",
-  "logo": "https://raw.githubusercontent.com/stefanprodan/podinfo/gh-pages/cuddle_clap.gif",
-  "message": "greetings from podinfo v6.0.0",
-  "goos": "linux",
-  "goarch": "amd64",
-  "runtime": "go1.16.5",
-  "num_goroutine": "10",
-  "num_cpu": "2"
-  }
-```
+9. Confirm that podinfo can be correctly accessed via ingress:
+    ```bash
+      $ curl -H "Host: podinfo.test" k8s-xxxxxx.elb.us-west-2.amazonaws.com
+      {
+        "hostname": "podinfo-primary-65584c8f4f-d7v4t",
+        "version": "6.0.0",
+        "revision": "",
+        "color": "#34577c",
+        "logo": "https://raw.githubusercontent.com/stefanprodan/podinfo/gh-pages/cuddle_clap.gif",
+        "message": "greetings from podinfo v6.0.0",
+        "goos": "linux",
+        "goarch": "amd64",
+        "runtime": "go1.16.5",
+        "num_goroutine": "10",
+        "num_cpu": "2"
+      }
+    ```
 
 Congratulations! Your cluster has sync'ed all the configuration defined on the repository. Continue exploring the configuration following these docs:
 

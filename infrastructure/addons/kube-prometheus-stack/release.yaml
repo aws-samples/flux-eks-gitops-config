@@ -2,9 +2,11 @@ apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
   name: kube-prometheus-stack
-  namespace: monitoring
+  namespace: flux-system
 spec:
   releaseName: kube-prometheus-stack
+  serviceAccountName: helm-controller
+  targetNamespace: monitoring
   chart:
     spec:
       chart: kube-prometheus-stack

@@ -6,6 +6,5 @@ resources:
   - eks-charts-helm.yaml
   - aws-vpc-cni.yaml
   - nginx-ingress-controller.yaml
-  - podinfo.yaml
   - prometheus.yaml
   - flagger.yaml
