@@ -10,9 +10,13 @@ spec:
   chart:
     spec:
       chart: kube-prometheus-stack
-      version: 20.0.1
+      version: 35.2.0
       sourceRef:
         kind: HelmRepository
         name: prometheus-community
         namespace: flux-system
   interval: 1m
+  install:
+    crds: CreateReplace
+  upgrade:
+    crds: CreateReplace

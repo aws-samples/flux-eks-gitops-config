@@ -19,9 +19,18 @@ spec:
   rules:
   - name: default-deny-ingress
     match:
-      resources: 
-        kinds:
-        - Namespace
+      any:
+      - resources: 
+          kinds:
+          - Namespace
+    # Need to create inbound policies for these namespaces 
+    exclude:
+      any:
+      - resources:
+          namespaces:
+          - calico-system
+          - tigera-operator
+          - monitoring
     generate:
       kind: NetworkPolicy
       name: default-deny
