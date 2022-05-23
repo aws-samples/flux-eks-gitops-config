@@ -5,7 +5,7 @@ kind: ClusterConfig
 metadata:
   name: my-eks-cluster 
   region: us-west-2
-  version: "1.21"
+  version: "1.22"
 
 managedNodeGroups:
   - name: system-ng
@@ -25,4 +25,5 @@ iam:
     # i.e. arn:aws:iam::(your_aws_account_number_here):policy/AWSLoadBalancerControllerIAMPolicy
     attachPolicyARNs:
     - arn:aws:iam::012345678910:policy/AWSLoadBalancerControllerIAMPolicy
+    roleOnly: true
 

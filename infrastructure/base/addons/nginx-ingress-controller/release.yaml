@@ -48,6 +48,7 @@ spec:
         targetMemoryUtilizationPercentage: 98
   interval: 5m
   dependsOn:
+    - name: aws-load-balancer-controller
     - name: kube-prometheus-stack
   install:
     remediation:
