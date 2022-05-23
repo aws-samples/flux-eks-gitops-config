@@ -6,6 +6,10 @@ The configuration of Kubernetes clusters in this repository is structured in the
 
 Contains the [Kustomization](https://fluxcd.io/docs/components/kustomize/kustomization/) objects to sync with each cluster (`test` and `production`). The repository leverages [Kustomize overlays](https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/#bases-and-overlays) to apply different security and application settings for `TEST` and `PRODUCTION` clusters.
 
+## external-config-data
+
+Contains a ConfigMap created on the `flux-system` namespace to pass values of resources created externally to the cluster to HelmReleases. Examples of these are IAM Role ARN and clusterName for aws-load-balancer-controller add-on. The sample uses this ConfigMap in the Infrastructure Kustomization to perform [variable substitution](https://fluxcd.io/docs/components/kustomize/kustomization/#variable-substitution). 
+
 ## infrastructure
 
 Contains the add-ons to be installed on the cluster as well as the [source](https://fluxcd.io/docs/components/source/) objects for the add-ons and applications installed. It's divided into two subfolders:
@@ -111,9 +115,10 @@ The repository specifies dependencies between FluxCD Kustomization and HelmRelea
 Flux starts sync'ing the infrastructure Kustomization. Once it's sync'ed and passes [health checks](https://fluxcd.io/docs/components/kustomize/kustomization/#health-assessment), it will sync the config Kustomization and finally the apps kustomization.  
 
 ```
-infrastructure
-      |-- config
-            |-- tenants
+external-config-data
+          |-- infrastructure
+                 |-- config
+                       |-- tenants
 ```
 
 ##  HelmReleases
@@ -121,7 +126,7 @@ infrastructure
 Within the infrastructure Kustomization, this repo defines the following dependencies between HelmReleases:
 
 ```
-[ calico | kube-prometheus-stack | metrics-server ]
-                     |-------- [ kyverno | ingress-nginx ]
-                                         |-------- [ flagger ]
+[ aws-load-balancer-controller | calico | kube-prometheus-stack ]
+                                   |-------- [ kyverno | ingress-nginx ]
+                                                       |-------- [ flagger ]
 ```
