@@ -16,6 +16,7 @@ When the platform team on-boards a tenant, a namespace is created, and a *Servic
 
 This sample repository is meant to experiment with the predefined cluster configuration and you can use it as a baseline to adjust it to your own needs. It installs the following Kubernetes add-ons:
 
+* **[aws-load-balancer-controller](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.4/):**  Controller to manage AWS Elastic Load Balancers on your Kubernetes cluster.
 * **[metrics-server](https://github.com/kubernetes-sigs/metrics-server):** Aggregator of resource usage data in your cluster, commonly used by other Kubernetes add ons, such us [Horizontal Pod Autoscaler](https://docs.aws.amazon.com/eks/latest/userguide/horizontal-pod-autoscaler.html) or [Kubernetes Dashboard](https://docs.aws.amazon.com/eks/latest/userguide/dashboard-tutorial.html).
 * **[Calico](https://docs.projectcalico.org/about/about-calico):** Project Calico is a network policy engine for Kubernetes. Calico network policy enforcement allows you to implement network segmentation and tenant isolation. For more information check the [Amazon EKS documentation](https://docs.aws.amazon.com/eks/latest/userguide/calico.html).
 * **[Kyverno](https://kyverno.io/):** Kubernetes Policy Management Engine. Kyverno allows cluster administrators to manage environment specific configurations independently of workload configurations and enforce configuration best practices for their clusters. Kyverno can be used to scan existing workloads for best practices, or can be used to enforce best practices by blocking or mutating API requests.
@@ -42,17 +43,15 @@ It also leverages sample cluster policies created by Kyverno:
 
 ### Prerequisites
 
-The add-ons and configurations of this repository require Kubernetes 1.21 or higher (this is required by the version of kube-prometheus-stack that is installed, you can use 1.19+ installing previous versions of kube-prometheus-stack). This example assumes you'll bootstrap Flux on an Amazon EKS cluster that doesn't have installed any of the add-ons above. It also assumes that the cluster has already installed the following add-ons:
+Before you can deploy this sample, you'll need the following:
+* Amazon EKS Cluster v 1.21+ with IAM OIDC Provider associated. 
+* IAM Role for service account aws-load-balancer-controller in kube-system namespace
 
-* [AWS Load Balancer Controller](https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html)
+To create the above pre-requisites with `eksctl` follow the instructions in ![docs/deploy-eks-cluster](/docs/deploy_cluster.md).
 
-The reason why the above add-ons aren't handled by Flux is because they need IAM Roles to be created in advance.
+If you preffer using Terraform, you leverage [terraform-aws-eks-blueprints](https://github.com/aws-ia/terraform-aws-eks-blueprints) to deploy a "batteries included" Amazon EKS cluster according to best practices and recommendations. Follow instructions in [eks-cluster-with-new-vpc](https://github.com/aws-ia/terraform-aws-eks-blueprints/tree/main/examples/eks-cluster-with-new-vpc) to deploy the cluster (make sure you disable the K8s addons [here](https://github.com/aws-ia/terraform-aws-eks-blueprints/blob/main/examples/eks-cluster-with-new-vpc/main.tf#L108-L112) as they will be managed by Flux). You'll also need to [configure IRSA](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.4/deploy/installation/#setup-iam-role-for-service-accounts) for the `aws-load-balancer-controller`. 
 
-To create an EKS cluster with `eksctl` follow the instructions in ![docs/deploy-eks-cluster](/docs/deploy_cluster.md).
-
-You can also leverage [aws-eks-accelerator-for-terraform](https://github.com/aws-samples/aws-eks-accelerator-for-terraform) to deploy a "batteries included" EKS cluster according to best practices and recommendations. Follow instructions in [eks-cluster-with-new-vpc](https://github.com/aws-samples/aws-eks-accelerator-for-terraform/tree/main/deploy/eks-cluster-with-new-vpc).
-
-**IMPORTANT NOTE (if you use an existing cluster):** This sample installs multiple Kubernetes add-ons and their respective [Kubernetes Custom Resources](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/) via Helm. Currently, Helm [doesn't support deleting CRDs](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/#some-caveats-and-explanations), so they'll need to be deleted manually. Also, even after deleting the resources, there can still be calico `iptables` rules on the nodes that might interfere in unexpected ways with networking in your cluster and you will need to recycle all your nodes (more information [here](https://github.com/projectcalico/calico/blob/master/hack/remove-calico-policy/remove-policy.md)). It's recommended to create a dedicated Amazon EKS cluster to deploy this sample.
+**IMPORTANT NOTE (if you use an existing EKS cluster):** This sample installs multiple Kubernetes add-ons and their respective [Kubernetes Custom Resources](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/) via Helm. Currently, Helm [doesn't support deleting CRDs](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/#some-caveats-and-explanations), so they'll need to be deleted manually. Also, even after deleting the resources, there can still be calico `iptables` rules on the nodes that might interfere in unexpected ways with networking in your cluster and you will need to recycle all your nodes (more information [here](https://github.com/projectcalico/calico/blob/master/hack/remove-calico-policy/remove-policy.md)). It's recommended to create a dedicated Amazon EKS cluster to deploy this sample.
 
 You will also need the following:
 
@@ -72,7 +71,20 @@ You will also need the following:
 
 3. Within your fork of `flux-eks-gitops-config` update the URL field for the GitRepository Custom Resource in `tenants/base/podinfo-team/source.yaml` with the URL of your forked repository (e.g. `https://github.com/<user>/flux-eks-gitops-config-tenant`). Commit and Push the change. 
 
-4. Define whether you want to bootstrap your cluster with the `TEST` or the `PRODUCTION` configuration:
+4. Within your fork of `flux-eks-gitops-config` update the ConfigMap in `external-config-data/<CLUSTER_ENVIRONMENT>/external-config-data.yaml` with the ARN of the IAM Role you created for the aws-load-balancer-controller service account in `awsLoadBalancerControllerIamRoleArn` and the name of your cluster in `clusterName`. 
+
+    If you have followed the `eksctl` instructions, execute the following command to get the IAM Role ARN:
+
+    ```bash
+    $ eksctl get iamserviceaccount  --cluster my-eks-cluster
+    2022-05-23 15:44:46 [ℹ]  eksctl version 0.95.0
+    2022-05-23 15:44:46 [ℹ]  using region us-west-2
+    NAMESPACE       NAME                            ROLE ARN
+    kube-system     aws-load-balancer-controller    arn:aws:iam::012345678910:role/eksctl-my-eks-cluster-addon-iamserv-Role1-XXXXXXXX
+    kube-system     aws-node                        arn:aws:iam::012345678910:role/eksctl-my-eks-cluster-addon-iamserv-Role1-YYYYYYYY
+    ```
+
+5. Define whether you want to bootstrap your cluster with the `TEST` or the `PRODUCTION` configuration:
     ```bash
       # TEST configuration
       export CLUSTER_ENVIRONMENT=test
@@ -81,19 +93,19 @@ You will also need the following:
       export CLUSTER_ENVIRONMENT=production
     ```
 
-5. Verify that your stagging cluster satisfies the prerequisites with:
+6. Verify that your stagging cluster satisfies the prerequisites with:
     ```bash
       flux check --pre
     ```
 
-6. You can now bootstrap your cluster with Flux CLI.
+7. You can now bootstrap your cluster with Flux CLI.
     ```bash
       flux bootstrap github --owner=${GITHUB_USER} --repository=${GITHUB_REPO} --branch=main --path=clusters/${CLUSTER_ENVIRONMENT} --personal
     ```
   
     The bootstrap command commits the manifests for the Flux components in `clusters/${CLUSTER_ENVIRONMENT}/flux-system` directory and creates a deploy key with read-only access on GitHub,    so   it can pull changes inside the cluster.
   
-7. Confirm that Flux has finished applying the configuration to your cluster (it will take 3 or 4 minutes to sync everything):
+8. Confirm that Flux has finished applying the configuration to your cluster (it will take 5 - 7 minutes to sync everything):
     ```bash
       $ flux get kustomization
       NAME                READY MESSAGE                                                           REVISION                                        SUSPENDED 
@@ -105,7 +117,7 @@ You will also need the following:
       infrastructure      True  Applied revision: main/b7d10ca21be7cac0dcdd14c80353012ccfedd4fe   main/b7d10ca21be7cac0dcdd14c80353012ccfedd4fe   False
     ```
 
-8. Get the URL for the nginx ingress controller that has been deployed in your cluster (you will see two ingresses, since Flagger will create a canary ingress):
+9. Get the URL for the nginx ingress controller that has been deployed in your cluster (you will see two ingresses, since Flagger will create a canary ingress):
     ```bash
        $ kubectl get ingress -n podinfo
        NAME             CLASS   HOSTS          ADDRESS                               PORTS   AGE
@@ -113,7 +125,7 @@ You will also need the following:
        podinfo-canary   nginx   podinfo.test   k8s-xxxxxx.elb.us-west-2.amazonaws.com   80      23h
     ```
 
-9. Confirm that podinfo can be correctly accessed via ingress:
+10. Confirm that podinfo can be correctly accessed via ingress:
     ```bash
       $ curl -H "Host: podinfo.test" k8s-xxxxxx.elb.us-west-2.amazonaws.com
       {
