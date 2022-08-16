@@ -6,7 +6,7 @@ metadata:
   namespace: podinfo
 spec:
   interval: 1m
-  url: https://github.com/aws-samples/flux-eks-gitops-config-tenant.git
+  url: https://github.com/tsahiduek/flux-eks-gitops-config-tenant.git
   ref:
     branch: main
 ---
