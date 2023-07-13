@@ -15,7 +15,7 @@ To test this sample repository you need an Amazon EKS cluster with [AWS Load Bal
 1. Create an IAM Policy to grant permissions to AWS Load Balancer Controller to create and manage Load Balancers. We will use eksctl later to create an IAM Role for the aws-load-balancer-controller Service account.
 
     ```bash
-    curl -o iam_policy.json https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.3.0/docs/install/iam_policy.json
+    curl -o iam_policy.json https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.5.4/docs/install/iam_policy.json
     aws iam create-policy \
       --policy-name AWSLoadBalancerControllerIAMPolicy \
       --policy-document file://iam_policy.json
@@ -27,7 +27,7 @@ To test this sample repository you need an Amazon EKS cluster with [AWS Load Bal
 
     ```bash
     git clone https://github.com/aws-samples/flux-eks-gitops-config.git
-    cd k8s-infra
+    cd flux-eks-gitops-config
     ```
 
 1. Within `docs/examples/cluster.yaml`, in the `iam:` section, we're defining an IAM Role for service account aws-load-balancer-controller in the kube-system namespace. Update line 24 with the IAM policy ARN of the policy you've created in the prior step.
@@ -39,7 +39,7 @@ To test this sample repository you need an Amazon EKS cluster with [AWS Load Bal
 1. Create the EKS cluster running the following command. It will take 15-20 minutes to create the cluster.
 
     ```bash
-    eksctl create cluster -f docs/examples/cluster.yaml
+    eksctl create cluster -f docs/examples/eks-cluster/cluster.yaml
     ```
 
 You're all set. You can now go to the ![deploy section](../README.md#deploy-this-sample).
